@@ -1,0 +1,5 @@
+[pylint.FORMAT]
+disable=logging-fstring-interpolation
+
+[MASTER]
+init-hook='import sys; sys.path.append("./src")'
