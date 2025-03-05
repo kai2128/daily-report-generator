@@ -39,7 +39,14 @@ def parse_arguments():
         "--datetime",
         type=str,
         default=None,
-        help="要添加的日期时间，格式为YYYY-MM-DD HH:MM，如果不指定则使用当前时间",
+        help="要添加的日期时间，格式为YYYY-MM-DD HH:MM AM/PM，如果不指定则使用当前时间",
+    )
+
+    parser.add_argument(
+        "--font-size",
+        type=int,
+        default=config.WATERMARK_FONT_SIZE,
+        help=f"水印字体大小，默认为{config.WATERMARK_FONT_SIZE}",
     )
 
     return parser.parse_args()
@@ -66,18 +73,27 @@ def main():
 
     # 设置日期时间
     if args.datetime is None:
-        # 使用当前时间
-        datetime_str = datetime.now().strftime("%Y-%m-%d %H:%M")
+        # 使用当前时间，使用AM/PM格式
+        datetime_str = datetime.now().strftime(config.WATERMARK_DATETIME_FORMAT)
     else:
         # 使用指定的日期时间
         datetime_str = args.datetime
 
+    # 临时修改字体大小（如果指定）
+    original_font_size = config.WATERMARK_FONT_SIZE
+    if args.font_size != config.WATERMARK_FONT_SIZE:
+        config.WATERMARK_FONT_SIZE = args.font_size
+
     # 添加水印
     print(f"正在为图片 {args.image} 添加水印...")
     print(f"水印日期时间: {datetime_str}")
+    print(f"水印字体大小: {config.WATERMARK_FONT_SIZE}")
     print(f"输出路径: {args.output}")
 
     result = image_processor.add_watermark(args.image, datetime_str, args.output)
+
+    # 恢复原始字体大小
+    config.WATERMARK_FONT_SIZE = original_font_size
 
     if result:
         print(f"水印添加成功: {result}")

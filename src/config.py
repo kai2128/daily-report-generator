@@ -22,14 +22,20 @@ OUTPUT_REPORT = os.path.join(
 )
 
 # 水印配置
-WATERMARK_FONT_SIZE = 20
+WATERMARK_FONT_SIZE = 30  # 增大字体大小
 WATERMARK_FONT_COLOR = (255, 255, 255, 255)  # 白色，完全不透明
 WATERMARK_POSITION = "bottom_right"  # 水印位置：右下角
 WATERMARK_PADDING = 15  # 水印与图片边缘的距离（像素）
+WATERMARK_DATETIME_FORMAT = "%Y-%m-%d %I:%M %p"  # 添加AM/PM格式
 
 # 报告配置
 REPORT_TITLE = "Daily Report"
 REPORT_AUTHOR = "System"
+
+# AI配置
+USE_AI = True  # 是否使用AI识别图片内容
+AI_CONFIDENCE_THRESHOLD = 0.7  # AI识别的置信度阈值
+AI_MAX_DESCRIPTIONS = 3  # 每张图片最多返回的描述数量
 
 
 # 随机日期时间生成配置

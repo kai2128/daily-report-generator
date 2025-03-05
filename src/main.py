@@ -17,6 +17,7 @@ import config
 import image_processor
 import data_processor
 import report_generator
+import ai_processor
 
 
 def parse_arguments():
@@ -40,6 +41,17 @@ def parse_arguments():
         "--output", type=str, default=config.OUTPUT_DIR, help="输出文件夹路径"
     )
 
+    parser.add_argument(
+        "--use-ai",
+        action="store_true",
+        default=config.USE_AI,
+        help="使用AI识别图片内容",
+    )
+
+    parser.add_argument(
+        "--no-ai", action="store_false", dest="use_ai", help="不使用AI识别图片内容"
+    )
+
     return parser.parse_args()
 
 
@@ -57,6 +69,7 @@ def main():
     print(f"图片文件夹: {args.images}")
     print(f"Excel文件: {args.excel}")
     print(f"输出文件夹: {args.output}")
+    print(f"使用AI: {'是' if args.use_ai else '否'}")
     print("=" * 50)
 
     # 确保输出文件夹存在
@@ -86,33 +99,46 @@ def main():
     # 处理图片对并添加水印
     print("正在处理图片并添加水印...")
     processed_pairs = []
-    for i, (original_image, corrected_image) in enumerate(image_pairs):
+    for i, (image1, image2) in enumerate(image_pairs):
         print(f"处理图片对 {i+1}/{len(image_pairs)}")
+
+        # 使用AI处理图片对
+        if args.use_ai:
+            print("使用AI识别图片内容...")
+            before_image, after_image, description, action = (
+                ai_processor.process_image_pair_with_ai(
+                    image1, image2, descriptions_and_actions
+                )
+            )
+            print(
+                f"AI识别结果: 之前图片={os.path.basename(before_image)}, 之后图片={os.path.basename(after_image)}"
+            )
+            print(f"选择的描述: {description}")
+            print(f"选择的纠正措施: {action}")
+        else:
+            # 不使用AI，随机选择描述和纠正措施
+            before_image = image1
+            after_image = image2
+            index = i % len(descriptions_and_actions)
+            description, action = descriptions_and_actions[index]
 
         # 生成随机日期时间
         random_datetime = config.generate_random_datetime()
 
         # 处理图片对
-        processed_original, processed_corrected, datetime_str = (
+        processed_before, processed_after, datetime_str = (
             image_processor.process_image_pair(
-                original_image, corrected_image, random_datetime
+                before_image, after_image, random_datetime
             )
         )
 
         # 如果处理失败，跳过这对图片
-        if processed_original is None or processed_corrected is None:
+        if processed_before is None or processed_after is None:
             print(f"处理图片对 {i+1} 失败，跳过")
             continue
 
-        # 获取描述和纠正措施
-        # 如果描述和纠正措施不足，则循环使用
-        index = i % len(descriptions_and_actions)
-        description, action = descriptions_and_actions[index]
-
         # 添加到处理后的图片对列表
-        processed_pairs.append(
-            (processed_original, processed_corrected, description, action)
-        )
+        processed_pairs.append((processed_before, processed_after, description, action))
 
     # 如果没有处理成功的图片对，则退出
     if not processed_pairs:

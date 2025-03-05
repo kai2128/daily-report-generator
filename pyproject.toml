@@ -5,7 +5,7 @@ description = "Default template for PDM package"
 authors = [
     {name = "kai", email = "-"},
 ]
-dependencies = ["pillow>=11.1.0", "pandas>=2.2.3", "openpyxl>=3.1.5", "python-docx>=1.1.2"]
+dependencies = ["pillow>=11.1.0", "pandas>=2.2.3", "openpyxl>=3.1.5", "python-docx>=1.1.2", "ftfy>=6.3.1", "regex>=2024.11.6", "tqdm>=4.67.1", "transformers>=4.49.0", "timm>=1.0.15", "nltk>=3.9.1", "open-clip-torch>=2.31.0"]
 requires-python = "==3.11.*"
 readme = "README.md"
 license = {text = "MIT"}

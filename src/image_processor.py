@@ -119,8 +119,8 @@ def process_image_pair(original_image_path, corrected_image_path, datetime_obj=N
     if datetime_obj is None:
         datetime_obj = config.generate_random_datetime()
 
-    # 格式化日期时间字符串
-    datetime_str = datetime_obj.strftime("%Y-%m-%d %H:%M")
+    # 格式化日期时间字符串，使用AM/PM格式
+    datetime_str = datetime_obj.strftime(config.WATERMARK_DATETIME_FORMAT)
 
     # 创建输出目录（如果不存在）
     os.makedirs(config.OUTPUT_DIR, exist_ok=True)
