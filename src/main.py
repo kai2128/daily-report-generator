@@ -9,6 +9,8 @@ import os
 import sys
 import argparse
 from datetime import datetime
+import random
+import glob
 
 # 添加当前目录到系统路径
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -20,46 +22,245 @@ import report_generator
 import ai_processor
 
 
-def parse_arguments():
+def parse_args():
     """
     解析命令行参数
 
     Returns:
         argparse.Namespace: 解析后的参数
     """
-    parser = argparse.ArgumentParser(description="生成日报表")
+    parser = argparse.ArgumentParser(description="日报生成器")
 
+    # 路径参数
+    parser.add_argument("--output", help="输出文件夹路径", default=config.OUTPUT_DIR)
     parser.add_argument(
-        "--images", type=str, default=config.IMAGES_DIR, help="图片文件夹路径"
+        "--images",
+        "--images-dir",
+        dest="images_dir",
+        help="图片文件夹路径",
+        default=config.IMAGES_DIR,
     )
+    parser.add_argument("--capa", help="CAPA CSV文件路径", default=config.CAPA_CSV_FILE)
 
-    parser.add_argument(
-        "--capa", type=str, default=config.CAPA_CSV_FILE, help="CAPA CSV文件路径"
-    )
+    # 水印参数
+    parser.add_argument("--watermark", help="水印文本", default=None)
+    parser.add_argument("--no-watermark", action="store_true", help="不添加水印")
 
-    parser.add_argument(
-        "--output", type=str, default=config.OUTPUT_DIR, help="输出文件夹路径"
-    )
+    # AI参数
+    parser.add_argument("--ai", action="store_true", help="使用AI识别图片内容")
+    parser.add_argument("--no-ai", action="store_true", help="不使用AI识别图片内容")
 
-    parser.add_argument(
-        "--use-ai",
-        action="store_true",
-        default=config.USE_AI,
-        help="使用AI识别图片内容",
-    )
-
-    parser.add_argument(
-        "--no-ai", action="store_false", dest="use_ai", help="不使用AI识别图片内容"
-    )
-
+    # 模式参数
     parser.add_argument(
         "--manual-mode",
         action="store_true",
-        default=False,
         help="使用手动模式（从images/before和images/after目录获取图像对）",
+    )
+    parser.add_argument(
+        "--use-capa", action="store_true", help="使用CAPA CSV文件中的描述和纠正措施"
+    )
+
+    # 位置参数
+    parser.add_argument("--location", help="设置所有图像对的位置信息", default="")
+    parser.add_argument(
+        "--locations-file",
+        help="包含位置信息的文件路径，每行一个位置，与图像对一一对应",
+        default=None,
     )
 
     return parser.parse_args()
+
+
+def process_images(args):
+    """
+    处理图像并生成报告
+
+    Args:
+        args (argparse.Namespace): 命令行参数
+
+    Returns:
+        str: 生成的报告路径
+    """
+    # 读取CAPA CSV数据
+    descriptions_and_actions, no_to_index = (
+        data_processor.get_all_descriptions_and_actions()
+    )
+
+    # 处理图像
+    image_pairs_with_data = []
+    locations = []  # 存储位置信息
+
+    # 处理位置信息
+    default_location = args.location if hasattr(args, "location") else ""
+    locations_from_file = []
+
+    # 如果提供了位置文件，读取位置信息
+    if hasattr(args, "locations_file") and args.locations_file:
+        try:
+            with open(args.locations_file, "r", encoding="utf-8") as f:
+                locations_from_file = [line.strip() for line in f.readlines()]
+            print(
+                f"从文件 {args.locations_file} 读取了 {len(locations_from_file)} 个位置信息"
+            )
+        except Exception as e:
+            print(f"读取位置文件时出错: {e}")
+            locations_from_file = []
+
+    if args.manual_mode:
+        # 手动模式：从before和after目录获取图像对
+        image_pairs = image_processor.get_manual_image_pairs(args.images_dir)
+
+        if image_pairs is None:
+            print("无法获取手动配对的图像对，程序退出")
+            return None
+
+        # 处理每个图像对
+        for i, (before_image, after_image, capa_index) in enumerate(image_pairs):
+            # 处理图像对，添加水印
+            processed_before, processed_after, datetime_str = (
+                image_processor.process_image_pair(before_image, after_image)
+            )
+
+            if processed_before is None or processed_after is None:
+                print(f"处理图像对 {i+1} 失败，跳过")
+                continue
+
+            # 根据CAPA索引选择描述和纠正措施
+            if capa_index is not None and args.use_capa:
+                # 检查CAPA索引是否在no_to_index映射中
+                if capa_index in no_to_index:
+                    idx = no_to_index[capa_index]
+                    if idx < len(descriptions_and_actions):
+                        description, action = descriptions_and_actions[idx]
+                    else:
+                        print(f"警告：CAPA索引 {capa_index} 超出范围，使用随机描述")
+                        description, action = random.choice(descriptions_and_actions)
+                else:
+                    print(
+                        f"警告：CAPA索引 {capa_index} 在No到索引映射中不存在，使用随机描述"
+                    )
+                    description, action = random.choice(descriptions_and_actions)
+            else:
+                # 随机选择描述和纠正措施
+                description, action = random.choice(descriptions_and_actions)
+
+            # 添加到结果列表
+            image_pairs_with_data.append(
+                (processed_before, processed_after, description, action)
+            )
+
+            # 添加位置信息
+            location_index = len(image_pairs_with_data) - 1
+            if location_index < len(locations_from_file):
+                locations.append(locations_from_file[location_index])
+            else:
+                locations.append(default_location)
+
+    else:
+        # 自动模式：使用AI识别图像内容
+        if args.ai:
+            # 获取所有图像文件
+            image_files = []
+            for ext in ["*.jpg", "*.jpeg", "*.png"]:
+                image_files.extend(glob.glob(os.path.join(args.images_dir, ext)))
+
+            # 确保有偶数个图像
+            if len(image_files) % 2 != 0:
+                image_files = image_files[:-1]
+
+            # 按照修改时间排序
+            image_files.sort(key=os.path.getmtime)
+
+            # 两两配对处理
+            for i in range(0, len(image_files), 2):
+                if i + 1 < len(image_files):
+                    image1 = image_files[i]
+                    image2 = image_files[i + 1]
+
+                    # 使用AI分析图像对
+                    before_image, after_image, best_description = (
+                        ai_processor.analyze_image_pair(image1, image2)
+                    )
+
+                    if before_image is None or after_image is None:
+                        print(f"分析图像对 {image1} 和 {image2} 失败，跳过")
+                        continue
+
+                    # 处理图像对，添加水印
+                    processed_before, processed_after, datetime_str = (
+                        image_processor.process_image_pair(before_image, after_image)
+                    )
+
+                    if processed_before is None or processed_after is None:
+                        print(f"处理图像对 {before_image} 和 {after_image} 失败，跳过")
+                        continue
+
+                    # 查找最匹配的描述和纠正措施
+                    description, action = ai_processor.find_best_description_match(
+                        best_description, descriptions_and_actions
+                    )
+
+                    # 添加到结果列表
+                    image_pairs_with_data.append(
+                        (processed_before, processed_after, description, action)
+                    )
+
+                    # 添加位置信息
+                    location_index = len(image_pairs_with_data) - 1
+                    if location_index < len(locations_from_file):
+                        locations.append(locations_from_file[location_index])
+                    else:
+                        locations.append(default_location)
+        else:
+            # 不使用AI，随机配对图像
+            # 获取所有图像文件
+            image_files = []
+            for ext in ["*.jpg", "*.jpeg", "*.png"]:
+                image_files.extend(glob.glob(os.path.join(args.images_dir, ext)))
+
+            # 确保有偶数个图像
+            if len(image_files) % 2 != 0:
+                image_files = image_files[:-1]
+
+            # 随机打乱图像顺序
+            random.shuffle(image_files)
+
+            # 两两配对处理
+            for i in range(0, len(image_files), 2):
+                if i + 1 < len(image_files):
+                    image1 = image_files[i]
+                    image2 = image_files[i + 1]
+
+                    # 处理图像对，添加水印
+                    processed_image1, processed_image2, datetime_str = (
+                        image_processor.process_image_pair(image1, image2)
+                    )
+
+                    if processed_image1 is None or processed_image2 is None:
+                        print(f"处理图像对 {image1} 和 {image2} 失败，跳过")
+                        continue
+
+                    # 随机选择描述和纠正措施
+                    description, action = random.choice(descriptions_and_actions)
+
+                    # 添加到结果列表
+                    image_pairs_with_data.append(
+                        (processed_image1, processed_image2, description, action)
+                    )
+
+                    # 添加位置信息
+                    location_index = len(image_pairs_with_data) - 1
+                    if location_index < len(locations_from_file):
+                        locations.append(locations_from_file[location_index])
+                    else:
+                        locations.append(default_location)
+
+    # 生成报告
+    if image_pairs_with_data:
+        return report_generator.generate_report(image_pairs_with_data, locations)
+    else:
+        print("没有可用的图像对，无法生成报告")
+        return None
 
 
 def main():
@@ -67,124 +268,31 @@ def main():
     主函数
     """
     # 解析命令行参数
-    args = parse_arguments()
+    args = parse_args()
 
     # 打印欢迎信息
     print("=" * 50)
     print("日报表生成器")
     print("=" * 50)
-    print(f"图片文件夹: {args.images}")
+    print(f"图片文件夹: {args.images_dir}")
     print(f"CAPA CSV文件: {args.capa}")
     print(f"输出文件夹: {args.output}")
-    print(f"使用AI: {'是' if args.use_ai else '否'}")
+    print(f"使用AI: {'是' if args.ai else '否'}")
     print(f"手动模式: {'是' if args.manual_mode else '否'}")
+    if hasattr(args, "location") and args.location:
+        print(f"位置信息: {args.location}")
+    if hasattr(args, "locations_file") and args.locations_file:
+        print(f"位置信息文件: {args.locations_file}")
     print("=" * 50)
 
-    # 确保输出文件夹存在
+    # 确保输出目录存在
     os.makedirs(args.output, exist_ok=True)
 
-    # 读取CAPA CSV数据
-    print("正在读取CAPA CSV数据...")
-    descriptions_and_actions, no_to_index = (
-        data_processor.get_all_descriptions_and_actions()
-    )
-    if not descriptions_and_actions or descriptions_and_actions == [
-        ("无描述", "无纠正措施")
-    ]:
-        print("无法读取CAPA CSV数据，程序退出")
-        return
-
-    # 获取图片对
-    if args.manual_mode:
-        print("使用手动模式获取图片对...")
-        image_pairs = image_processor.get_manual_image_pairs(args.images)
-        if not image_pairs:
-            print("无法获取手动配对的图片对，尝试使用默认方法...")
-            image_pairs = image_processor.get_image_pairs(args.images)
-            if not image_pairs:
-                print("无法获取图片对，程序退出")
-                return
-            # 转换为普通模式的图片对
-            image_pairs = [(img1, img2, None) for img1, img2 in image_pairs]
-    else:
-        print("正在获取图片对...")
-        image_pairs = image_processor.get_image_pairs(args.images)
-        if not image_pairs:
-            print("无法获取图片对，程序退出")
-            return
-        # 转换为与手动模式兼容的格式
-        image_pairs = [(img1, img2, None) for img1, img2 in image_pairs]
-
-    print(f"找到 {len(image_pairs)} 对图片")
-
-    # 处理图片对并添加水印
-    print("正在处理图片并添加水印...")
-    processed_pairs = []
-    for i, (before_image, after_image, capa_index) in enumerate(image_pairs):
-        print(f"处理图片对 {i+1}/{len(image_pairs)}")
-
-        # 使用AI处理图片对或根据手动模式选择描述
-        if args.use_ai:
-            print("使用AI识别图片内容...")
-            before_img, after_img, description, action = (
-                ai_processor.process_image_pair_with_ai(
-                    before_image, after_image, descriptions_and_actions
-                )
-            )
-            print(
-                f"AI识别结果: 之前图片={os.path.basename(before_img)}, 之后图片={os.path.basename(after_img)}"
-            )
-            print(f"选择的描述: {description}")
-            print(f"选择的纠正措施: {action}")
-        else:
-            # 不使用AI，根据capa_index选择描述和纠正措施
-            if capa_index is not None:
-                # 使用指定的CAPA索引（文件名中的索引是CAPA CSV中的No列）
-                if capa_index in no_to_index:
-                    # 如果找到对应的No，使用对应的描述
-                    index = no_to_index[capa_index]
-                    description, action = descriptions_and_actions[index]
-                    print(f"使用CAPA No.{capa_index}的描述")
-                else:
-                    # 如果没有找到对应的No，使用随机描述
-                    print(f"警告：未找到CAPA No.{capa_index}，使用随机描述")
-                    index = i % len(descriptions_and_actions)
-                    description, action = descriptions_and_actions[index]
-            else:
-                # 随机选择描述和纠正措施
-                index = i % len(descriptions_and_actions)
-                description, action = descriptions_and_actions[index]
-                print(f"随机选择描述（索引 {index}）")
-
-        # 生成随机日期时间
-        random_datetime = config.generate_random_datetime()
-
-        # 处理图片对
-        processed_before, processed_after, datetime_str = (
-            image_processor.process_image_pair(
-                before_image, after_image, random_datetime
-            )
-        )
-
-        # 如果处理失败，跳过这对图片
-        if processed_before is None or processed_after is None:
-            print(f"处理图片对 {i+1} 失败，跳过")
-            continue
-
-        # 添加到处理后的图片对列表
-        processed_pairs.append((processed_before, processed_after, description, action))
-
-    # 如果没有处理成功的图片对，则退出
-    if not processed_pairs:
-        print("没有处理成功的图片对，程序退出")
-        return
-
-    # 生成报告
-    print("正在生成报告...")
-    report_path = report_generator.generate_report(processed_pairs)
+    # 处理图像并生成报告
+    report_path = process_images(args)
 
     if report_path:
-        print(f"报告生成成功: {report_path}")
+        print(f"报告已生成: {report_path}")
     else:
         print("报告生成失败")
 

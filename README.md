@@ -11,6 +11,7 @@
 - **备选方案**：当高级AI功能不可用时，自动切换到基于图像特征的简化分析
 - **数据源**：从CAPA CSV文件中读取描述和纠正措施
 - **命令行界面**：支持通过命令行参数自定义报告生成过程
+- **自定义位置**：支持为每个观察项添加位置信息
 
 ## 安装
 
@@ -90,6 +91,9 @@ IMAGE_QUALITY = 90  # 图像质量（1-100）
 - `--ai`：启用AI图像识别功能
 - `--no-ai`：禁用AI图像识别功能
 - `--manual-mode`：使用手动模式（从images/before和images/after目录获取图像对）
+- `--use-capa`：使用CAPA CSV文件中的描述和纠正措施
+- `--location`：设置所有图像对的位置信息
+- `--locations-file`：包含位置信息的文件路径，每行一个位置，与图像对一一对应
 
 示例：
 
@@ -112,8 +116,24 @@ python src/main.py --no-ai
 # 使用手动模式
 python src/main.py --manual-mode
 
+# 设置位置信息
+python src/main.py --location "Level - 8 & 11"
+
+# 使用位置信息文件
+python src/main.py --locations-file ./docs/locations.txt
+
 # 组合使用
-python src/main.py --manual-mode --no-ai
+python src/main.py --manual-mode --no-ai --location "Level - 8 & 11"
+```
+
+### 位置信息文件格式
+
+位置信息文件是一个简单的文本文件，每行包含一个位置信息，与图像对一一对应：
+
+```
+Level - 8 & 11
+Level - 9
+Level - 10 & 12
 ```
 
 ### AI图像识别功能
@@ -172,7 +192,7 @@ daily-report-generator/
 4. 如果使用手动模式，根据文件名中的CAPA索引选择描述
 5. 为每对图片添加水印和时间戳
 6. 调整图片大小，确保每对图片具有相同的尺寸
-7. 生成包含图片和描述的报告
+7. 生成包含图片和描述的报告，包括位置信息
 8. 将报告保存到`output`文件夹中
 
 ## 注意事项
@@ -182,6 +202,7 @@ daily-report-generator/
 - 在手动模式下，确保`before`和`after`目录中的图片按照正确的命名规则命名
 - 为获得最佳AI识别效果，图片应清晰且内容相关
 - 如果AI功能不可用，系统会自动切换到基于图像特征的简化分析
+- 位置信息文件中的位置数量应与图像对数量相匹配，否则将使用默认位置或空位置
 
 ## 依赖
 
