@@ -595,6 +595,13 @@ def simple_description_match(content_description, descriptions_list):
         # 综合分数
         match_score = intersection_size + length_bonus + vocab_bonus
 
+        # 如果描述中包含"before"或"after"，根据内容描述中是否也包含这些词给予额外奖励
+        desc_lower = desc.lower()
+        if "before" in desc_lower and "before" in content_description.lower():
+            match_score += 1.0
+        if "after" in desc_lower and "after" in content_description.lower():
+            match_score += 1.0
+
         match_scores.append((i, match_score, desc))
 
         # 更新最佳匹配

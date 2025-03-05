@@ -16,17 +16,25 @@ DOCS_DIR = os.path.join(BASE_DIR, "docs")
 OUTPUT_DIR = os.path.join(BASE_DIR, "output")
 
 # 文件配置
-EXCEL_FILE = os.path.join(DOCS_DIR, "Daily inspection Summary.xlsx")
+CAPA_CSV_FILE = os.path.join(DOCS_DIR, "capa.csv")  # CAPA CSV文件路径
 OUTPUT_REPORT = os.path.join(
     OUTPUT_DIR, f'Daily_Report_{datetime.now().strftime("%Y%m%d_%H%M%S")}.docx'
 )
 
 # 水印配置
+WATERMARK_FONT = "Arial"  # 水印字体，如果不存在会使用默认字体
 WATERMARK_FONT_SIZE = 30  # 增大字体大小
-WATERMARK_FONT_COLOR = (255, 255, 255, 255)  # 白色，完全不透明
+WATERMARK_TEXT_COLOR = (255, 255, 255, 255)  # 白色文字，完全不透明
+WATERMARK_OUTLINE_COLOR = (0, 0, 0, 255)  # 黑色轮廓，完全不透明
 WATERMARK_POSITION = "bottom_right"  # 水印位置：右下角
 WATERMARK_PADDING = 15  # 水印与图片边缘的距离（像素）
 WATERMARK_DATETIME_FORMAT = "%Y-%m-%d %I:%M %p"  # 添加AM/PM格式
+
+# 图像处理配置
+IMAGE_RESIZE_ENABLED = True  # 是否启用图像大小调整
+IMAGE_MAX_WIDTH = 1200  # 图像最大宽度
+IMAGE_MAX_HEIGHT = 800  # 图像最大高度
+IMAGE_QUALITY = 90  # 图像质量（1-100）
 
 # 报告配置
 REPORT_TITLE = "Daily Report"
