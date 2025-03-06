@@ -17,6 +17,9 @@ OUTPUT_DIR = os.path.join(BASE_DIR, "output")
 
 # 文件配置
 CAPA_CSV_FILE = os.path.join(DOCS_DIR, "capa.csv")  # CAPA CSV文件路径
+INPUT_CSV_FILE = os.path.join(
+    DOCS_DIR, "input.csv"
+)  # 输入CSV文件路径，包含编号、位置和日期信息
 OUTPUT_REPORT = os.path.join(
     OUTPUT_DIR, f'Daily_Report_{datetime.now().strftime("%Y%m%d_%H%M%S")}.docx'
 )
@@ -44,6 +47,9 @@ REPORT_AUTHOR = "System"
 USE_AI = True  # 是否使用AI识别图片内容
 AI_CONFIDENCE_THRESHOLD = 0.7  # AI识别的置信度阈值
 AI_MAX_DESCRIPTIONS = 3  # 每张图片最多返回的描述数量
+
+# 输入配置
+USE_INPUT_CSV = True  # 是否使用input.csv文件中的数据
 
 
 # 随机日期时间生成配置

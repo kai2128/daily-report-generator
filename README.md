@@ -12,6 +12,7 @@
 - **数据源**：从CAPA CSV文件中读取描述和纠正措施
 - **命令行界面**：支持通过命令行参数自定义报告生成过程
 - **自定义位置**：支持为每个观察项添加位置信息
+- **自定义日期**：支持从input.csv文件中读取日期信息
 
 ## 安装
 
@@ -61,6 +62,32 @@ python src/main.py --manual-mode
 - `images/before/2.jpg`：第2对图片的"之前"图片，随机选择描述
 - `images/after/2.jpg`：第2对图片的"之后"图片
 
+### 使用input.csv文件
+
+您可以使用`input.csv`文件来指定图像对的编号、位置和日期信息：
+
+1. 在`docs`文件夹中创建`input.csv`文件
+2. 文件格式为：`编号,位置,日期`，每行一条记录
+3. 编号应与手动模式下的图片对编号对应
+4. 日期格式为`DD/MM/YYYY`或`MM/DD/YYYY`
+5. 使用`--use-input`参数运行程序：
+
+```bash
+python src/main.py --manual-mode --use-input
+```
+
+示例`input.csv`文件内容：
+```
+1,Location Level 2 8,10/02/2025
+2,Location Level 3 A,15/02/2025
+3,Location Level 1 C,20/02/2025
+```
+
+在这个例子中：
+- 编号为1的图片对将使用"Location Level 2 8"作为位置，日期为2025年2月10日
+- 编号为2的图片对将使用"Location Level 3 A"作为位置，日期为2025年2月15日
+- 编号为3的图片对将使用"Location Level 1 C"作为位置，日期为2025年2月20日
+
 ### 图像处理功能
 
 系统会自动处理图像，包括：
@@ -86,12 +113,15 @@ IMAGE_QUALITY = 90  # 图像质量（1-100）
 - `--output`：指定输出文件夹路径
 - `--images`：指定图片文件夹路径
 - `--capa`：指定CAPA CSV文件路径
+- `--input`：指定input CSV文件路径
 - `--watermark`：指定水印文本
 - `--no-watermark`：不添加水印
 - `--ai`：启用AI图像识别功能
 - `--no-ai`：禁用AI图像识别功能
 - `--manual-mode`：使用手动模式（从images/before和images/after目录获取图像对）
 - `--use-capa`：使用CAPA CSV文件中的描述和纠正措施
+- `--use-input`：使用input CSV文件中的编号、位置和日期信息
+- `--no-input`：不使用input CSV文件中的数据
 - `--location`：设置所有图像对的位置信息
 - `--locations-file`：包含位置信息的文件路径，每行一个位置，与图像对一一对应
 
@@ -116,6 +146,12 @@ python src/main.py --no-ai
 # 使用手动模式
 python src/main.py --manual-mode
 
+# 使用input CSV文件
+python src/main.py --manual-mode --use-input
+
+# 使用自定义input CSV文件
+python src/main.py --manual-mode --input ./my_data/input.csv
+
 # 设置位置信息
 python src/main.py --location "Level - 8 & 11"
 
@@ -123,7 +159,7 @@ python src/main.py --location "Level - 8 & 11"
 python src/main.py --locations-file ./docs/locations.txt
 
 # 组合使用
-python src/main.py --manual-mode --no-ai --location "Level - 8 & 11"
+python src/main.py --manual-mode --no-ai --use-input --location "Level - 8 & 11"
 ```
 
 ### 位置信息文件格式
@@ -178,7 +214,7 @@ daily-report-generator/
 ├── images/               # 图片文件夹
 │   ├── before/           # 手动模式下的"之前"图片
 │   └── after/            # 手动模式下的"之后"图片
-├── docs/                 # 包含CAPA CSV文件
+├── docs/                 # 包含CAPA CSV文件和input CSV文件
 ├── output/               # 输出文件夹
 ├── requirements.txt      # 依赖列表
 └── README.md             # 说明文档
@@ -187,22 +223,25 @@ daily-report-generator/
 ## 工作流程
 
 1. 从CAPA CSV文件中读取描述和纠正措施
-2. 处理`images`文件夹中的图片（或手动模式下的`images/before`和`images/after`目录）
-3. 如果启用AI功能，使用AI识别图片内容并分类为"之前"和"之后"
-4. 如果使用手动模式，根据文件名中的CAPA索引选择描述
-5. 为每对图片添加水印和时间戳
-6. 调整图片大小，确保每对图片具有相同的尺寸
-7. 生成包含图片和描述的报告，包括位置信息
-8. 将报告保存到`output`文件夹中
+2. 如果启用，从input CSV文件中读取编号、位置和日期信息
+3. 处理`images`文件夹中的图片（或手动模式下的`images/before`和`images/after`目录）
+4. 如果启用AI功能，使用AI识别图片内容并分类为"之前"和"之后"
+5. 如果使用手动模式，根据文件名中的CAPA索引选择描述
+6. 为每对图片添加水印和时间戳（如果从input CSV中读取了日期，则使用该日期）
+7. 调整图片大小，确保每对图片具有相同的尺寸
+8. 生成包含图片和描述的报告，包括位置信息
+9. 将报告保存到`output`文件夹中
 
 ## 注意事项
 
 - CAPA CSV文件应包含"No"、"Before"和"CAPA"列，分别对应编号、描述和纠正措施
+- input CSV文件应包含三列：编号、位置和日期，不需要列名
 - 图片应为JPG或PNG格式
 - 在手动模式下，确保`before`和`after`目录中的图片按照正确的命名规则命名
 - 为获得最佳AI识别效果，图片应清晰且内容相关
 - 如果AI功能不可用，系统会自动切换到基于图像特征的简化分析
 - 位置信息文件中的位置数量应与图像对数量相匹配，否则将使用默认位置或空位置
+- 日期格式应为`DD/MM/YYYY`或`MM/DD/YYYY`，系统会尝试自动识别格式
 
 ## 依赖
 

@@ -250,7 +250,7 @@ def get_manual_image_pairs(images_dir):
         images_dir (str): 图像根目录路径
 
     Returns:
-        list: 图像对列表，每个元素是一个元组 (before_image_path, after_image_path, capa_index)
+        list: 图像对列表，每个元素是一个元组 (before_image_path, after_image_path, capa_index, pairing_id)
               capa_index可能为None，表示随机选择CAPA
     """
     before_dir = os.path.join(images_dir, "before")
@@ -274,7 +274,7 @@ def get_manual_image_pairs(images_dir):
         if file.lower().endswith((".jpg", ".jpeg", ".png")):
             match = before_pattern.match(file)
             if match:
-                pairing_id = match.group(1)
+                pairing_id = int(match.group(1))
                 capa_index = match.group(2)
                 if capa_index:
                     capa_index = int(capa_index)
@@ -285,7 +285,7 @@ def get_manual_image_pairs(images_dir):
         if file.lower().endswith((".jpg", ".jpeg", ".png")):
             match = after_pattern.match(file)
             if match:
-                pairing_id = match.group(1)
+                pairing_id = int(match.group(1))
                 after_images[pairing_id] = os.path.join(after_dir, file)
 
     # 匹配图像对
@@ -294,7 +294,7 @@ def get_manual_image_pairs(images_dir):
         if pairing_id in after_images:
             before_image, capa_index = before_images[pairing_id]
             after_image = after_images[pairing_id]
-            image_pairs.append((before_image, after_image, capa_index))
+            image_pairs.append((before_image, after_image, capa_index, pairing_id))
 
     if not image_pairs:
         print("警告：未找到匹配的图像对")

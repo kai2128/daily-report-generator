@@ -8,6 +8,7 @@
 import os
 import random
 import pandas as pd
+from datetime import datetime
 import config
 
 
@@ -45,6 +46,64 @@ def read_capa_csv_data(csv_path=None):
     except Exception as e:
         print(f"读取CSV文件时出错: {e}")
         return None
+
+
+def read_input_csv_data(csv_path=None):
+    """
+    读取input CSV文件中的数据，该文件包含编号、位置和日期信息
+
+    Args:
+        csv_path (str, optional): CSV文件路径，如果为None则使用配置中的路径
+
+    Returns:
+        pandas.DataFrame: 读取的数据
+        dict: 编号到(位置,日期)的映射
+    """
+    if csv_path is None:
+        csv_path = os.path.join(os.path.dirname(config.CAPA_CSV_FILE), "input.csv")
+
+    try:
+        # 读取CSV文件，不使用列名
+        df = pd.read_csv(csv_path, header=None, names=["No", "Location", "Date"])
+
+        # 检查数据是否为空
+        if df.empty:
+            print(f"CSV文件 {csv_path} 中没有数据")
+            return None, {}
+
+        # 创建编号到(位置,日期)的映射
+        no_to_location_date = {}
+        for i, row in df.iterrows():
+            try:
+                no = int(row["No"])
+                location = row["Location"] if not pd.isna(row["Location"]) else ""
+                date_str = row["Date"] if not pd.isna(row["Date"]) else ""
+
+                # 尝试解析日期字符串
+                date_obj = None
+                if date_str:
+                    try:
+                        # 尝试解析日期格式 DD/MM/YYYY
+                        date_obj = datetime.strptime(date_str, "%d/%m/%Y")
+                    except ValueError:
+                        try:
+                            # 尝试解析日期格式 MM/DD/YYYY
+                            date_obj = datetime.strptime(date_str, "%m/%d/%Y")
+                        except ValueError:
+                            print(f"无法解析日期字符串: {date_str}，使用默认日期")
+
+                no_to_location_date[no] = (location, date_obj)
+            except (ValueError, TypeError):
+                # 如果No不是整数，则忽略
+                print(f"忽略无效的行: {row}")
+                pass
+
+        print(f"从文件 {csv_path} 读取了 {len(no_to_location_date)} 条记录")
+        return df, no_to_location_date
+
+    except Exception as e:
+        print(f"读取input CSV文件时出错: {e}")
+        return None, {}
 
 
 def get_random_description_and_action(data=None):

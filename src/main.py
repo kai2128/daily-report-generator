@@ -41,6 +41,9 @@ def parse_args():
         default=config.IMAGES_DIR,
     )
     parser.add_argument("--capa", help="CAPA CSV文件路径", default=config.CAPA_CSV_FILE)
+    parser.add_argument(
+        "--input", help="输入CSV文件路径", default=config.INPUT_CSV_FILE
+    )
 
     # 水印参数
     parser.add_argument("--watermark", help="水印文本", default=None)
@@ -58,6 +61,14 @@ def parse_args():
     )
     parser.add_argument(
         "--use-capa", action="store_true", help="使用CAPA CSV文件中的描述和纠正措施"
+    )
+    parser.add_argument(
+        "--use-input",
+        action="store_true",
+        help="使用input CSV文件中的编号、位置和日期信息",
+    )
+    parser.add_argument(
+        "--no-input", action="store_true", help="不使用input CSV文件中的数据"
     )
 
     # 位置参数
@@ -85,6 +96,25 @@ def process_images(args):
     descriptions_and_actions, no_to_index = (
         data_processor.get_all_descriptions_and_actions()
     )
+
+    # 读取input CSV数据（如果启用）
+    input_data = None
+    no_to_location_date = {}
+    use_input_csv = (
+        (hasattr(args, "use_input") and args.use_input)
+        or (not hasattr(args, "no_input") or not args.no_input)
+        and config.USE_INPUT_CSV
+    )
+
+    if use_input_csv:
+        input_data, no_to_location_date = data_processor.read_input_csv_data(
+            args.input if hasattr(args, "input") else None
+        )
+        print(f"从input CSV文件读取了 {len(no_to_location_date)} 条记录")
+        # 打印读取到的位置和日期信息，方便调试
+        for no, (location, date_obj) in no_to_location_date.items():
+            date_str = date_obj.strftime("%Y-%m-%d") if date_obj else "无日期"
+            print(f"编号 {no}: 位置 '{location}', 日期 {date_str}")
 
     # 处理图像
     image_pairs_with_data = []
@@ -115,10 +145,47 @@ def process_images(args):
             return None
 
         # 处理每个图像对
-        for i, (before_image, after_image, capa_index) in enumerate(image_pairs):
+        for i, (before_image, after_image, capa_index, pairing_id) in enumerate(
+            image_pairs
+        ):
+            # 获取位置和日期信息（如果有）
+            location = default_location
+            datetime_obj = None
+
+            # 首先尝试使用pairing_id作为键
+            if use_input_csv and pairing_id in no_to_location_date:
+                location_from_input, date_from_input = no_to_location_date[pairing_id]
+                if location_from_input:
+                    location = location_from_input
+                    print(f"图像对 {pairing_id} 使用input CSV中的位置: {location}")
+                if date_from_input:
+                    datetime_obj = date_from_input
+                    print(
+                        f"图像对 {pairing_id} 使用input CSV中的日期: {date_from_input.strftime('%Y-%m-%d')}"
+                    )
+            # 如果pairing_id不存在，但capa_index存在，则尝试使用capa_index
+            elif (
+                use_input_csv
+                and capa_index is not None
+                and capa_index in no_to_location_date
+            ):
+                location_from_input, date_from_input = no_to_location_date[capa_index]
+                if location_from_input:
+                    location = location_from_input
+                    print(
+                        f"图像对 {pairing_id} (CAPA索引 {capa_index}) 使用input CSV中的位置: {location}"
+                    )
+                if date_from_input:
+                    datetime_obj = date_from_input
+                    print(
+                        f"图像对 {pairing_id} (CAPA索引 {capa_index}) 使用input CSV中的日期: {date_from_input.strftime('%Y-%m-%d')}"
+                    )
+
             # 处理图像对，添加水印
             processed_before, processed_after, datetime_str = (
-                image_processor.process_image_pair(before_image, after_image)
+                image_processor.process_image_pair(
+                    before_image, after_image, datetime_obj
+                )
             )
 
             if processed_before is None or processed_after is None:
@@ -150,11 +217,7 @@ def process_images(args):
             )
 
             # 添加位置信息
-            location_index = len(image_pairs_with_data) - 1
-            if location_index < len(locations_from_file):
-                locations.append(locations_from_file[location_index])
-            else:
-                locations.append(default_location)
+            locations.append(location)
 
     else:
         # 自动模式：使用AI识别图像内容
@@ -276,9 +339,14 @@ def main():
     print("=" * 50)
     print(f"图片文件夹: {args.images_dir}")
     print(f"CAPA CSV文件: {args.capa}")
+    if hasattr(args, "input"):
+        print(f"输入CSV文件: {args.input}")
     print(f"输出文件夹: {args.output}")
     print(f"使用AI: {'是' if args.ai else '否'}")
     print(f"手动模式: {'是' if args.manual_mode else '否'}")
+    print(
+        f"使用input CSV: {'是' if hasattr(args, 'use_input') and args.use_input else '否'}"
+    )
     if hasattr(args, "location") and args.location:
         print(f"位置信息: {args.location}")
     if hasattr(args, "locations_file") and args.locations_file:
