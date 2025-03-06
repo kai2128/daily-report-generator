@@ -44,6 +44,11 @@ def parse_args():
     parser.add_argument(
         "--input", help="输入CSV文件路径", default=config.INPUT_CSV_FILE
     )
+    parser.add_argument(
+        "--template",
+        help="报告模板文件路径",
+        default=os.path.join(config.BASE_DIR, "template", "report-template.docx"),
+    )
 
     # 水印参数
     parser.add_argument("--watermark", help="水印文本", default=None)
@@ -69,6 +74,9 @@ def parse_args():
     )
     parser.add_argument(
         "--no-input", action="store_true", help="不使用input CSV文件中的数据"
+    )
+    parser.add_argument(
+        "--use-template", action="store_true", help="使用模板文件生成报告"
     )
 
     # 位置参数
@@ -320,7 +328,14 @@ def process_images(args):
 
     # 生成报告
     if image_pairs_with_data:
-        return report_generator.generate_report(image_pairs_with_data, locations)
+        # 如果使用模板，则调用模板报告生成函数
+        if hasattr(args, "use_template") and args.use_template:
+            template_path = args.template if hasattr(args, "template") else None
+            return report_generator.generate_report_from_template(
+                image_pairs_with_data, locations, template_path
+            )
+        else:
+            return report_generator.generate_report(image_pairs_with_data, locations)
     else:
         print("没有可用的图像对，无法生成报告")
         return None
@@ -342,10 +357,15 @@ def main():
     if hasattr(args, "input"):
         print(f"输入CSV文件: {args.input}")
     print(f"输出文件夹: {args.output}")
+    if hasattr(args, "template") and args.template:
+        print(f"报告模板文件: {args.template}")
     print(f"使用AI: {'是' if args.ai else '否'}")
     print(f"手动模式: {'是' if args.manual_mode else '否'}")
     print(
         f"使用input CSV: {'是' if hasattr(args, 'use_input') and args.use_input else '否'}"
+    )
+    print(
+        f"使用模板: {'是' if hasattr(args, 'use_template') and args.use_template else '否'}"
     )
     if hasattr(args, "location") and args.location:
         print(f"位置信息: {args.location}")
