@@ -42,7 +42,7 @@ def add_watermark(image_path, datetime_str=None, output_path=None):
             font = ImageFont.truetype(config.WATERMARK_FONT, config.WATERMARK_FONT_SIZE)
         except IOError:
             # 如果无法加载指定字体，则使用默认字体
-            font = ImageFont.load_default()
+            font = ImageFont.load_default(config.WATERMARK_FONT_SIZE)
 
         # 计算水印文本的大小 - 兼容不同版本的Pillow
         try:
