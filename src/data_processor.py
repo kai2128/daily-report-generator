@@ -192,8 +192,12 @@ def get_all_descriptions_and_actions(data=None):
             try:
                 no = int(row[no_col])
                 no_to_index[no] = i
+                print(f"已注册CAPA条目: No {no} -> 索引 {i} (描述: {description})")
             except (ValueError, TypeError):
                 # 如果No不是整数，则忽略
+                print(f"警告：跳过无效的No值 '{row[no_col]}'，行 {i+2}")
                 pass
 
+    print("\nCAPA条目注册完成，总计:", len(no_to_index))
+    print("有效的No列表:", sorted(no_to_index.keys()))
     return result, no_to_index

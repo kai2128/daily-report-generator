@@ -238,20 +238,16 @@ def get_image_pairs(images_dir):
     return image_pairs
 
 
-def get_manual_image_pairs(images_dir):
+def get_manual_image_pairs(images_dir, input_data=None):
     """
-    从images/before和images/after目录获取手动配对的图像对
-
-    命名规则：
-    - before目录: <pairing_id>_<optional_capa_index>.jpg/png
-    - after目录: <pairing_id>.jpg/png
+    从images/before和images/after目录获取手动配对的图像对，按input.csv顺序排序
 
     Args:
         images_dir (str): 图像根目录路径
+        input_data (DataFrame): 输入的CSV数据
 
     Returns:
-        list: 图像对列表，每个元素是一个元组 (before_image_path, after_image_path, capa_index, pairing_id)
-              capa_index可能为None，表示随机选择CAPA
+        list: 按input.csv顺序排序的图像对列表
     """
     before_dir = os.path.join(images_dir, "before")
     after_dir = os.path.join(images_dir, "after")
@@ -265,36 +261,49 @@ def get_manual_image_pairs(images_dir):
     before_images = {}
     after_images = {}
 
-    # 正则表达式匹配before图像的命名模式
-    before_pattern = re.compile(r"^(\d+)(?:_(\d+))?\.(?:jpg|jpeg|png)$", re.IGNORECASE)
+    # 更新正则表达式匹配模式
+    before_pattern = re.compile(r"^(\d+)_(\d+)\.(?:jpg|jpeg|png)$", re.IGNORECASE)
     after_pattern = re.compile(r"^(\d+)\.(?:jpg|jpeg|png)$", re.IGNORECASE)
 
-    # 获取before目录中的图像
+    # 处理before目录
     for file in os.listdir(before_dir):
-        if file.lower().endswith((".jpg", ".jpeg", ".png")):
-            match = before_pattern.match(file)
-            if match:
-                pairing_id = int(match.group(1))
-                capa_index = match.group(2)
-                if capa_index:
-                    capa_index = int(capa_index)
-                before_images[pairing_id] = (os.path.join(before_dir, file), capa_index)
+        match = before_pattern.match(file)
+        if match:
+            pairing_id = int(match.group(1))
+            capa_index = int(match.group(2))
+            before_images[pairing_id] = (os.path.join(before_dir, file), capa_index)
 
-    # 获取after目录中的图像
+    # 处理after目录
     for file in os.listdir(after_dir):
-        if file.lower().endswith((".jpg", ".jpeg", ".png")):
-            match = after_pattern.match(file)
-            if match:
-                pairing_id = int(match.group(1))
-                after_images[pairing_id] = os.path.join(after_dir, file)
+        match = after_pattern.match(file)
+        if match:
+            pairing_id = int(match.group(1))
+            after_images[pairing_id] = os.path.join(after_dir, file)
 
-    # 匹配图像对
+    # 获取input.csv中的顺序
+    input_order = []
+    if input_data is not None:
+        input_order = input_data['No'].tolist()
+
+    # 匹配图像对并按input.csv顺序排序
     image_pairs = []
-    for pairing_id in before_images:
-        if pairing_id in after_images:
-            before_image, capa_index = before_images[pairing_id]
-            after_image = after_images[pairing_id]
-            image_pairs.append((before_image, after_image, capa_index, pairing_id))
+    
+    # 首先添加存在于input.csv中的配对
+    for no in input_order:
+        if no in before_images and no in after_images:
+            before_image, capa_index = before_images[no]
+            after_image = after_images[no]
+            image_pairs.append((before_image, after_image, capa_index, no))
+            # 移除已处理的条目
+            del before_images[no]
+            del after_images[no]
+
+    # 然后添加剩余的未在input.csv中的配对
+    for remaining_no in before_images:
+        if remaining_no in after_images:
+            before_image, capa_index = before_images[remaining_no]
+            after_image = after_images[remaining_no]
+            image_pairs.append((before_image, after_image, capa_index, remaining_no))
 
     if not image_pairs:
         print("警告：未找到匹配的图像对")

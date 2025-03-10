@@ -14,7 +14,7 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 IMAGES_DIR = os.path.join(BASE_DIR, "images")
 DOCS_DIR = os.path.join(BASE_DIR, "docs")
 OUTPUT_DIR = os.path.join(BASE_DIR, "output")
-
+DEBUG_MODE = False
 # 文件配置
 CAPA_CSV_FILE = os.path.join(DOCS_DIR, "capa.csv")  # CAPA CSV文件路径
 INPUT_CSV_FILE = os.path.join(

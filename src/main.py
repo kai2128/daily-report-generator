@@ -145,17 +145,15 @@ def process_images(args):
             locations_from_file = []
 
     if args.manual_mode:
-        # 手动模式：从before和after目录获取图像对
-        image_pairs = image_processor.get_manual_image_pairs(args.images_dir)
-
+        # 修改调用方式，传入input_data
+        image_pairs = image_processor.get_manual_image_pairs(args.images_dir, input_data)
+        
         if image_pairs is None:
             print("无法获取手动配对的图像对，程序退出")
             return None
 
-        # 处理每个图像对
-        for i, (before_image, after_image, capa_index, pairing_id) in enumerate(
-            image_pairs
-        ):
+        # 移除之前的排序逻辑，直接处理image_pairs
+        for i, (before_image, after_image, capa_index, pairing_id) in enumerate(image_pairs):
             # 获取位置和日期信息（如果有）
             location = default_location
             datetime_obj = None
@@ -202,19 +200,34 @@ def process_images(args):
 
             # 根据CAPA索引选择描述和纠正措施
             if capa_index is not None and args.use_capa:
-                # 检查CAPA索引是否在no_to_index映射中
+                print(f"\n处理图像对 {pairing_id}:")
+                print(f"尝试使用CAPA索引 {capa_index} 匹配CAPA条目...")
+                
+                # 打印CAPA映射表内容用于调试
+                if config.DEBUG_MODE:
+                    print("当前CAPA映射表 (No -> 索引):")
+                    for no, idx in no_to_index.items():
+                        print(f"  No {no} -> 索引 {idx}")
+
                 if capa_index in no_to_index:
                     idx = no_to_index[capa_index]
+                    print(f"找到匹配的CAPA条目: No {capa_index} 对应索引 {idx}")
+                    
                     if idx < len(descriptions_and_actions):
                         description, action = descriptions_and_actions[idx]
+                        print(f"成功获取描述和措施:")
+                        print(f"描述: {description}")
+                        print(f"纠正措施: {action}")
                     else:
-                        print(f"警告：CAPA索引 {capa_index} 超出范围，使用随机描述")
+                        print(f"警告：索引 {idx} 超出范围（总条目数 {len(descriptions_and_actions)}）")
                         description, action = random.choice(descriptions_and_actions)
                 else:
-                    print(
-                        f"警告：CAPA索引 {capa_index} 在No到索引映射中不存在，使用随机描述"
-                    )
+                    available_nos = sorted(no_to_index.keys())
+                    print(f"错误：CAPA索引 {capa_index} 不存在！可用No列表: {available_nos}")
+                    print(f"将使用随机选择的描述和措施")
                     description, action = random.choice(descriptions_and_actions)
+                
+                print("-" * 50)
             else:
                 # 随机选择描述和纠正措施
                 description, action = random.choice(descriptions_and_actions)
