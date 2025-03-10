@@ -91,11 +91,26 @@ def read_input_csv_data(csv_path=None):
                             date_obj = datetime.strptime(date_str, "%m/%d/%Y")
                         except ValueError:
                             print(f"无法解析日期字符串: {date_str}，使用默认日期")
+                            date_obj = config.generate_random_datetime()
+                    else:
+                        # 成功解析日期后，添加随机工作时间
+                        if date_obj:
+                            # 生成随机工作时间（与config.py相同的逻辑）
+                            random_hour = random.randint(8, 17)
+                            random_minute = random.randint(0, 59)
+                            date_obj = date_obj.replace(
+                                hour=random_hour,
+                                minute=random_minute,
+                                second=0,
+                                microsecond=0
+                            )
+                else:
+                    # 没有日期时使用完全随机日期时间
+                    date_obj = config.generate_random_datetime()
 
                 no_to_location_date[no] = (location, date_obj)
-            except (ValueError, TypeError):
-                # 如果No不是整数，则忽略
-                print(f"忽略无效的行: {row}")
+            except (ValueError, TypeError) as e:
+                print(f"忽略无效的行: {row}，错误: {e}")
                 pass
 
         print(f"从文件 {csv_path} 读取了 {len(no_to_location_date)} 条记录")
